@@ -4,14 +4,14 @@
 1. 设计一个简单的goroutine pool
 - 安全的启动go; 内置recover
 - 限制goroutine数量
+- 惰性增加goroutine
 - 使用简单
 
 
 example
 ```go
 func main() {
-	pool := ego.NewPool()
-
+	pool := ego.New()
 	pool.SetSize(100)
 	a := 1
 	b := 2

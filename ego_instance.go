@@ -6,5 +6,5 @@ const (
 
 // Instance
 func Instance(names ...string) *Ego {
-
+	return New()
 }
