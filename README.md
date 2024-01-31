@@ -27,3 +27,5 @@ func main() {
 # TODO
 - [] 使用sync.Pool 复用goroutine/或者task
 - [] 支持withCtx => group (可以分组等待)
+
+- [] 验证job使用指针传递是否更好

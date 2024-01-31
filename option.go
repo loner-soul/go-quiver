@@ -1,5 +1,10 @@
 package ego
 
+import (
+	"fmt"
+	"runtime/debug"
+)
+
 type OptionFunc func(e *Ego)
 
 const (
@@ -18,5 +23,18 @@ func WithSize(size int64) OptionFunc {
 func WithQueue(queue JobQueue) OptionFunc {
 	return func(e *Ego) {
 		e.jobs = queue
+	}
+}
+
+func WithRecover(recoverFunc func()) OptionFunc {
+	return func(e *Ego) {
+		e.recoverFunc = recoverFunc
+	}
+}
+
+func defaultRecover() {
+	if err := recover(); err != nil {
+		fmt.Println("Recovered from panic:", err)
+		debug.PrintStack()
 	}
 }

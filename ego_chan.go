@@ -6,31 +6,46 @@ import (
 
 // 阻塞式队列
 type jobChan struct {
-	jobs  chan job
+	jobs  chan Job
+	close bool
 	count atomic.Int64
 }
 
 func newJobChan() *jobChan {
 	return &jobChan{
-		jobs: make(chan job),
+		jobs: make(chan Job),
 	}
 }
 
-func (c *jobChan) EnQueue(job job) {
+// EnQueue close后不能再写入
+func (c *jobChan) EnQueue(job Job) {
+	if c.close {
+		// TODO logs
+		return
+	}
 	c.count.Add(1)
 	c.jobs <- job
 }
 
-func (c *jobChan) DeQueue() (job, bool) {
+func (c *jobChan) DeQueue() (Job, func(), bool) {
 	j, ok := <-c.jobs
-	c.count.Add(-1)
-	return j, ok
-}
-
-func (c *jobChan) Close() {
-	close(c.jobs)
+	if !ok {
+		return j, func() {}, false
+	}
+	f := func() { c.count.Add(-1) }
+	return j, f, true
 }
 
 func (c *jobChan) Len() int64 {
 	return c.count.Load()
+}
+
+func (c *jobChan) Close() {
+	c.close = true
+	for {
+		if c.Len() == 0 {
+			break
+		}
+	}
+	close(c.jobs)
 }
