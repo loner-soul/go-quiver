@@ -13,8 +13,6 @@ const (
 )
 
 const (
-	PANIC_SET_SIZE_AFTER_RUN = "can not set size after run"
-
 	PANIC_ADD_TASK_AFTER_WAIT = "can not add task after wait"
 )
 
@@ -62,16 +60,6 @@ func New(opt ...OptionFunc) *Ego {
 	return eg
 }
 
-func (e *Ego) SetSize(size int64) {
-	if size < 1 {
-		panic(PANIC_SET_SIZE_VALUE)
-	}
-	if e.run {
-		panic(PANIC_SET_SIZE_AFTER_RUN)
-	}
-	e.size = size
-}
-
 // Runf 当任务队列满了会阻塞
 func (e *Ego) Runf(ctx context.Context, task FuncArgs, args ...any) {
 	// 调用eg.Wait之后不能再添加任务
@@ -84,7 +72,7 @@ func (e *Ego) Runf(ctx context.Context, task FuncArgs, args ...any) {
 	for {
 		state := e.count.Load()
 		if state >= e.size {
-			e.jobs <- job{f: task, ctx: ctx, args: args}
+			e.jobs.EnQueue(job{f: task, ctx: ctx, args: args})
 			return
 		}
 		// 计数器+1
@@ -106,9 +94,14 @@ func (e *Ego) Wait() {
 	e.wait = true
 
 	// 等待所有chanel写入
-
+	for {
+		// TODO 此处需要优化
+		if e.jobs.Len() == 0 {
+			break
+		}
+	}
+	// TODO 可能还有最后一个
 	e.wg.Wait()
-	close(e.jobs)
 }
 
 func (e *Ego) goRun(ctx context.Context, task FuncArgs, args ...any) {
@@ -130,7 +123,7 @@ func (e *Ego) goRun(ctx context.Context, task FuncArgs, args ...any) {
 
 func (e *Ego) loopChan() {
 	for {
-		task, ok := <-e.jobs
+		task, ok := e.jobs.DeQueue()
 		if !ok {
 			// close chan
 			return
@@ -147,4 +140,8 @@ func (e *Ego) loopChan() {
 		}
 		e.goRun(task.ctx, task.f, task.args...)
 	}
+}
+
+func (e *Ego) Close() {
+	e.jobs.Close()
 }
