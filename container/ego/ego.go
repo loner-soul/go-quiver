@@ -4,6 +4,8 @@ import (
 	"context"
 	"sync"
 	"sync/atomic"
+
+	"github.com/loner-soul/ego/container/echan"
 )
 
 const (
@@ -35,7 +37,7 @@ func New(opt ...OptionFunc) *Ego {
 		eg.size = DEFAULT_EGO_SIZE
 	}
 	if eg.jobs == nil {
-		eg.jobs = newJobChan()
+		eg.jobs = echan.newJobChan()
 	}
 	if eg.recoverFunc == nil {
 		eg.recoverFunc = defaultRecover
