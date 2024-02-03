@@ -9,17 +9,23 @@
 
 
 example
+
 ```go
+package main
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/loner-soul/ego"
+)
+
 func main() {
 	pool := ego.New()
-	pool.SetSize(100)
-	a := 1
-	b := 2
-	pool.Run(func(a, b int){
-		// ....
-	}, a,b)
-
-	pool.Wait()
+	pool.Run(context.Background(), func(ctx context.Context) {
+		fmt.Println("run in goroutine")
+	})
+	pool.Close()
 }
 ```
 
@@ -29,3 +35,4 @@ func main() {
 - [] 支持withCtx => group (可以分组等待)
 
 - [] 验证job使用指针传递是否更好
+- [] 压测比较

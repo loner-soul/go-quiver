@@ -10,14 +10,6 @@ const (
 	DEFAULT_EGO_SIZE = 1000
 )
 
-// JobQueue 任务缓冲队列
-type JobQueue interface {
-	EnQueue(job Job)
-	DeQueue() (j Job, ack func(), ok bool) // j : 任务； ack:确认消费后长度-1; ok close后返回false
-	Len() int64
-	Close()
-}
-
 type FuncArgs func(ctx context.Context, args ...any)
 
 type Func func(ctx context.Context)
@@ -59,7 +51,7 @@ func (e *Ego) Runf(ctx context.Context, task FuncArgs, args ...any) {
 	for {
 		count := e.count.Load()
 		if count >= e.size {
-			e.jobs.EnQueue(job)
+			e.jobs.Push(job)
 			return
 		}
 		// 计数器+1
@@ -80,8 +72,6 @@ func (e *Ego) Run(ctx context.Context, task Func) {
 // Close 等待所有任务执行完成，需要确保所有任务都调用后才执行
 // 在http服务中使用时，应在server.Close()之后调用
 func (e *Ego) Close() {
-	// 等待所有chanel写入
-	e.jobs.Close()
 	e.wg.Wait()
 }
 
@@ -100,7 +90,7 @@ func (e *Ego) runJob(job Job) {
 func (e *Ego) loopQueue() {
 	for {
 		// 获取job
-		job, ack, ok := e.jobs.DeQueue()
+		job, ack, ok := e.jobs.Pop()
 		if !ok {
 			return
 		}

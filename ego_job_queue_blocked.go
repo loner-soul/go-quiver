@@ -1,33 +1,29 @@
 package ego
 
 import (
+	"sync"
 	"sync/atomic"
 )
 
-// 阻塞式队列
 type jobChan struct {
+	rw    sync.RWMutex
 	jobs  chan Job
-	close bool
 	count atomic.Int64
 }
 
-func newJobChan() *jobChan {
+func newJobChan(size int64) JobQueue {
 	return &jobChan{
-		jobs: make(chan Job),
+		jobs: make(chan Job, size),
 	}
 }
 
-// EnQueue close后不能再写入
-func (c *jobChan) EnQueue(job Job) {
-	if c.close {
-		// TODO logs
-		return
-	}
+// Push 添加一个
+func (c *jobChan) Push(job Job) {
 	c.count.Add(1)
 	c.jobs <- job
 }
 
-func (c *jobChan) DeQueue() (Job, func(), bool) {
+func (c *jobChan) Pop() (Job, func(), bool) {
 	j, ok := <-c.jobs
 	if !ok {
 		return j, func() {}, false
@@ -41,11 +37,5 @@ func (c *jobChan) Len() int64 {
 }
 
 func (c *jobChan) Close() {
-	c.close = true
-	for {
-		if c.Len() == 0 {
-			break
-		}
-	}
 	close(c.jobs)
 }
