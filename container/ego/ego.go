@@ -5,7 +5,8 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/loner-soul/ego/container/echan"
+	"github.com/loner-soul/ego/container/queue"
+	"github.com/loner-soul/ego/container/queue/echan"
 )
 
 const (
@@ -21,7 +22,7 @@ type Ego struct {
 	// 处理异常函数
 	recoverFunc func()
 	// 缓存任务队列
-	jobs JobQueue
+	jobs queue.Queue[Job]
 	// goroutine计数器
 	count atomic.Int64
 	// 最大goroutine数量
@@ -37,7 +38,7 @@ func New(opt ...OptionFunc) *Ego {
 		eg.size = DEFAULT_EGO_SIZE
 	}
 	if eg.jobs == nil {
-		eg.jobs = echan.newJobChan()
+		eg.jobs = echan.NewEChan[Job](0)
 	}
 	if eg.recoverFunc == nil {
 		eg.recoverFunc = defaultRecover
@@ -48,7 +49,7 @@ func New(opt ...OptionFunc) *Ego {
 
 // Runf 当任务队列满了会阻塞
 func (e *Ego) Runf(ctx context.Context, task FuncArgs, args ...any) {
-	e.wg.Add(1) // 提前加1避免Wait时候没加上
+	e.wg.Add(1)
 	job := NewJob(ctx, task, args...)
 	for {
 		count := e.count.Load()
@@ -80,7 +81,6 @@ func (e *Ego) Close() {
 func (e *Ego) runJob(job Job) {
 	go func() {
 		defer func() {
-			// 顺序问题
 			e.recoverFunc()
 			e.wg.Done()
 			e.count.Add(-1)
@@ -92,7 +92,7 @@ func (e *Ego) runJob(job Job) {
 func (e *Ego) loopQueue() {
 	for {
 		// 获取job
-		job, ack, ok := e.jobs.Pop()
+		job, ok := e.jobs.Pop()
 		if !ok {
 			return
 		}
@@ -107,10 +107,6 @@ func (e *Ego) loopQueue() {
 				e.runJob(job)
 				break
 			}
-		}
-		// 确认消费
-		if ack != nil {
-			ack()
 		}
 	}
 }

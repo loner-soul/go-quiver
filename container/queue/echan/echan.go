@@ -1,43 +1,37 @@
 package echan
 
 import (
-	"sync"
 	"sync/atomic"
 
-	"github.com/loner-soul/ego/container/ego"
+	"github.com/loner-soul/ego/container/queue"
 )
 
-type jobChan struct {
-	rw    sync.RWMutex
-	jobs  chan ego.Job
+type chanQueue[T any] struct {
+	c     chan T
 	count atomic.Int64
 }
 
-func newJobChan(size int64) ego.JobQueue {
-	return &jobChan{
-		jobs: make(chan ego.Job, size),
+func NewEChan[T any](size int64) queue.Queue[T] {
+	return &chanQueue[T]{
+		c: make(chan T, size),
 	}
 }
 
 // Push 添加一个
-func (c *jobChan) Push(job ego.Job) {
+func (c *chanQueue[T]) Push(job T) {
 	c.count.Add(1)
-	c.jobs <- job
+	c.c <- job
 }
 
-func (c *jobChan) Pop() (ego.Job, func(), bool) {
-	j, ok := <-c.jobs
+func (c *chanQueue[T]) Pop() (T, bool) {
+	j, ok := <-c.c
 	if !ok {
-		return j, func() {}, false
+		return j, false
 	}
-	f := func() { c.count.Add(-1) }
-	return j, f, true
+	c.count.Add(-1)
+	return j, true
 }
 
-func (c *jobChan) Len() int64 {
+func (c *chanQueue[T]) Len() int64 {
 	return c.count.Load()
-}
-
-func (c *jobChan) Close() {
-	close(c.jobs)
 }
