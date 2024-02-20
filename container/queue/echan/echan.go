@@ -3,7 +3,7 @@ package echan
 import (
 	"sync/atomic"
 
-	"github.com/loner-soul/ego/container/queue"
+	"github.com/loner-soul/go-quiver/container/queue"
 )
 
 type chanQueue[T any] struct {

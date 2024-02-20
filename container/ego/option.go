@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"runtime/debug"
 
-	"github.com/loner-soul/ego/container/queue"
+	"github.com/loner-soul/go-quiver/container/queue"
 )
 
 type OptionFunc func(e *Ego)

@@ -5,8 +5,8 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/loner-soul/ego/container/queue"
-	"github.com/loner-soul/ego/container/queue/echan"
+	"github.com/loner-soul/go-quiver/container/queue"
+	"github.com/loner-soul/go-quiver/container/queue/echan"
 )
 
 const (

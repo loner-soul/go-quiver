@@ -17,7 +17,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/loner-soul/ego"
+	"github.com/loner-soul/go-quiver/container/ego"
 )
 
 func main() {
