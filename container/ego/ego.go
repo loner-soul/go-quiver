@@ -4,13 +4,10 @@ import (
 	"context"
 	"sync"
 	"sync/atomic"
-
-	"github.com/loner-soul/go-quiver/container/queue"
-	"github.com/loner-soul/go-quiver/container/queue/echan"
 )
 
 const (
-	DEFAULT_EGO_SIZE = 1000
+	DEFAULT_EGO_SIZE = 1
 )
 
 type FuncArgs func(ctx context.Context, args ...any)
@@ -18,15 +15,15 @@ type FuncArgs func(ctx context.Context, args ...any)
 type Func func(ctx context.Context)
 
 type Ego struct {
-	wg sync.WaitGroup
+	wg   sync.WaitGroup
+	cond *sync.Cond
 	// 处理异常函数
 	recoverFunc func()
-	// 缓存任务队列
-	jobs queue.Queue[Job]
 	// goroutine计数器
-	count atomic.Int64
+	count int64
 	// 最大goroutine数量
-	size int64
+	size   int64
+	isDone bool
 }
 
 func New(opt ...OptionFunc) *Ego {
@@ -37,32 +34,36 @@ func New(opt ...OptionFunc) *Ego {
 	if eg.size == 0 {
 		eg.size = DEFAULT_EGO_SIZE
 	}
-	if eg.jobs == nil {
-		eg.jobs = echan.NewEChan[Job](0)
-	}
 	if eg.recoverFunc == nil {
 		eg.recoverFunc = defaultRecover
 	}
-	go eg.loopQueue()
+	eg.cond = sync.NewCond(&sync.Mutex{})
 	return eg
 }
 
 // Runf 当任务队列满了会阻塞
 func (e *Ego) Runf(ctx context.Context, task FuncArgs, args ...any) {
-	e.wg.Add(1)
-	job := NewJob(ctx, task, args...)
-	for {
-		count := e.count.Load()
-		if count >= e.size {
-			e.jobs.Push(job)
-			return
-		}
-		// 计数器+1
-		if e.count.CompareAndSwap(count, count+1) {
-			e.runJob(job)
-			break
-		}
+	if e.isDone {
+		panic("can not run any task after done")
 	}
+
+	e.wg.Add(1)
+	e.cond.L.Lock()
+	for e.size >= e.count {
+		e.cond.Wait()
+	}
+	e.count++
+	e.cond.L.Unlock()
+
+	go func(ctx context.Context, task FuncArgs, args ...any) {
+		defer func() {
+			e.recoverFunc()
+			e.wg.Done()
+			atomic.AddInt64(&e.count, -1)
+		}()
+		task(ctx, args...)
+	}(ctx, task, args...)
+
 }
 
 // Run 等价于 Runf 不传参数
@@ -72,46 +73,9 @@ func (e *Ego) Run(ctx context.Context, task Func) {
 	})
 }
 
-// Close 等待所有任务执行完成，需要确保所有任务都调用后才执行
+// Done 等待所有任务执行完成，需要确保所有任务都调用后才执行
 // 在http服务中使用时，应在server.Close()之后调用
-func (e *Ego) Close() {
+func (e *Ego) Done() {
+	e.isDone = true
 	e.wg.Wait()
-}
-
-func (e *Ego) runJob(job Job) {
-	go func() {
-		defer func() {
-			e.recoverFunc()
-			e.wg.Done()
-			e.count.Add(-1)
-		}()
-		job.f(job.ctx, job.args...)
-	}()
-}
-
-func (e *Ego) loopQueue() {
-	for {
-		// 获取job
-		job, ok := e.jobs.Pop()
-		if !ok {
-			return
-		}
-		// 处理job
-		for {
-			state := e.count.Load()
-			if state >= e.size {
-				continue
-			}
-			// 计数器+1
-			if e.count.CompareAndSwap(state, state+1) {
-				e.runJob(job)
-				break
-			}
-		}
-	}
-}
-
-func (e *Ego) greaterThanOrEqualToSize() bool {
-	state := e.count.Load()
-	return state >= e.size
 }

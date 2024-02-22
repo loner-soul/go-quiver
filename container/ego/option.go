@@ -3,8 +3,6 @@ package ego
 import (
 	"fmt"
 	"runtime/debug"
-
-	"github.com/loner-soul/go-quiver/container/queue"
 )
 
 type OptionFunc func(e *Ego)
@@ -19,12 +17,6 @@ func WithSize(size int64) OptionFunc {
 	}
 	return func(e *Ego) {
 		e.size = size
-	}
-}
-
-func WithQueue(queue queue.Queue[Job]) OptionFunc {
-	return func(e *Ego) {
-		e.jobs = queue
 	}
 }
 
