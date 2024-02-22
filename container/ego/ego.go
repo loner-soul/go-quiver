@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	DEFAULT_EGO_SIZE = 1
+	DEFAULT_EGO_SIZE = 5000
 )
 
 type FuncArgs func(ctx context.Context, args ...any)
@@ -79,4 +79,8 @@ func (e *Ego) Run(ctx context.Context, task Func) {
 func (e *Ego) Done() {
 	e.isDone = true
 	e.wg.Wait()
+}
+
+func (e *Ego) SetEgoSize(size int64) {
+	atomic.StoreInt64(&e.size, size)
 }

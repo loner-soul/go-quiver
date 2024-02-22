@@ -8,7 +8,7 @@ import (
 type OptionFunc func(e *Ego)
 
 const (
-	PANIC_SET_SIZE_VALUE = "size must > 0"
+	PANIC_SET_SIZE_VALUE = "ego size must > 0"
 )
 
 func WithSize(size int64) OptionFunc {
