@@ -49,7 +49,7 @@ func (e *Ego) Runf(ctx context.Context, task FuncArgs, args ...any) {
 
 	e.wg.Add(1)
 	e.cond.L.Lock()
-	for e.size >= e.count {
+	for e.count >= e.size {
 		e.cond.Wait()
 	}
 	e.count++
@@ -60,6 +60,7 @@ func (e *Ego) Runf(ctx context.Context, task FuncArgs, args ...any) {
 			e.recoverFunc()
 			e.wg.Done()
 			atomic.AddInt64(&e.count, -1)
+			e.cond.Signal()
 		}()
 		task(ctx, args...)
 	}(ctx, task, args...)

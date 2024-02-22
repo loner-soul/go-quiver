@@ -16,6 +16,6 @@ func Test_EgoUse(t *testing.T) {
 		fmt.Println("call in goroutine")
 	})
 
-	pool.Close()
+	pool.Done()
 	fmt.Println("done")
 }
