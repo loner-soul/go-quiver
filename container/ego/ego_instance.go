@@ -12,7 +12,7 @@ const (
 
 var (
 	instances = cache.NewSafeCache(func(name string) (*Ego, error) {
-		return New(WithSize(5000)), nil
+		return New(), nil
 	})
 	defaultEgo = Instance()
 )

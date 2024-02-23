@@ -4,10 +4,8 @@ import (
 	"context"
 	"sync"
 	"sync/atomic"
-)
 
-const (
-	DEFAULT_EGO_SIZE = 5000
+	"github.com/loner-soul/go-quiver/container/syncx"
 )
 
 type FuncArgs func(ctx context.Context, args ...any)
@@ -18,7 +16,7 @@ type Ego struct {
 	wg   sync.WaitGroup
 	cond *sync.Cond
 	// 处理异常函数
-	recoverFunc func()
+	recoverFunc func(any)
 	// goroutine计数器
 	count int64
 	// 最大goroutine数量
@@ -31,13 +29,10 @@ func New(opt ...OptionFunc) *Ego {
 	for _, o := range opt {
 		o(eg)
 	}
-	if eg.size == 0 {
-		eg.size = DEFAULT_EGO_SIZE
-	}
 	if eg.recoverFunc == nil {
 		eg.recoverFunc = defaultRecover
 	}
-	eg.cond = sync.NewCond(&sync.Mutex{})
+	eg.cond = sync.NewCond(syncx.NewSpinLock())
 	return eg
 }
 
@@ -46,25 +41,25 @@ func (e *Ego) Runf(ctx context.Context, task FuncArgs, args ...any) {
 	if e.isDone {
 		panic("can not run any task after done")
 	}
-
-	e.wg.Add(1)
 	e.cond.L.Lock()
-	for e.count >= e.size {
+	e.wg.Add(1)
+	for e.size > 0 && e.count >= e.size {
 		e.cond.Wait()
 	}
 	e.count++
 	e.cond.L.Unlock()
 
-	go func(ctx context.Context, task FuncArgs, args ...any) {
+	go func() {
 		defer func() {
-			e.recoverFunc()
-			e.wg.Done()
 			atomic.AddInt64(&e.count, -1)
+			e.wg.Done()
+			if v := recover(); v != nil {
+				e.recoverFunc(v)
+			}
 			e.cond.Signal()
 		}()
 		task(ctx, args...)
-	}(ctx, task, args...)
-
+	}()
 }
 
 // Run 等价于 Runf 不传参数

@@ -20,15 +20,13 @@ func WithSize(size int64) OptionFunc {
 	}
 }
 
-func WithRecover(recoverFunc func()) OptionFunc {
+func WithRecover(recoverFunc func(any)) OptionFunc {
 	return func(e *Ego) {
 		e.recoverFunc = recoverFunc
 	}
 }
 
-func defaultRecover() {
-	if err := recover(); err != nil {
-		fmt.Println("Recovered from panic:", err)
-		debug.PrintStack()
-	}
+func defaultRecover(v any) {
+	fmt.Println("Recovered from panic:", v)
+	debug.PrintStack()
 }
